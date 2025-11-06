@@ -1,0 +1,85 @@
+import LoanRequest from "../models/loanRequestModel.js";
+import LoanBrochure from "../models/loanBrochureModel.js";
+import { createContract } from "./contractController.js"; // 1. Import the createContract function
+
+// GET /lender/requests
+
+export const getMyLoanRequests = async (req, res, next) => {
+  try {
+    const lender = req.user;
+
+    // Find all of the lender's active brochures
+    const myBrochures = await LoanBrochure.find({
+      lender: lender.id,
+      active: true,
+    }).select("_id");
+    const myBrochureIds = myBrochures.map((b) => b.id);
+
+    // Find all loan requests that have a guarantor accepted and are ready for a lender
+    const requests = await LoanRequest.find({
+      brochureIds: { $in: myBrochureIds },
+      status: "GUARANTOR_ACCEPTED",
+    }).populate("receiver", "name avatarUrl trustIndex");
+
+    res.status(200).json({
+      status: "success",
+      results: requests.length,
+      data: {
+        requests,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /lender/requests/:id/accept
+
+export const acceptLoanRequest = async (req, res, next) => {
+  try {
+    const lender = req.user;
+    const loanRequestId = req.params.id;
+
+    const request = await LoanRequest.findById(loanRequestId);
+
+    // Check if the request is in the correct state to be accepted
+    if (!request || request.status !== "GUARANTOR_ACCEPTED") {
+      throw new Error(
+        "This loan request is not valid or has already been actioned."
+      );
+    }
+
+    // Find which of the lender's brochures is in this request
+    const myBrochureInRequest = await LoanBrochure.findOne({
+      lender: lender.id,
+      _id: { $in: request.brochureIds },
+    });
+
+    if (!myBrochureInRequest) {
+      throw new Error(
+        "You are not authorized to accept this request as it does not correspond to one of your brochures."
+      );
+    }
+
+    // --- Update Loan Request Status ---
+    request.status = "CONTRACTING";
+    request.selectedBrochure = myBrochureInRequest.id;
+    await request.save();
+
+    // --- 2. CRITICAL STEP: Trigger Contract Creation ---
+    // This call starts the PDF generation and signing process.
+    const newContract = await createContract(loanRequestId);
+
+    res.status(200).json({
+      status: "success",
+      message:
+        "Request accepted. A contract has been generated and is ready for signatures.",
+      data: {
+        loanRequest: request,
+        contract: newContract,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
