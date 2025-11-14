@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { auth } from "../api/api";
+import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 
 export default function Login() {
@@ -8,26 +8,26 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const nav = useNavigate();
+  const { login } = useAuth();
 
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await auth.login({ email, password });
-      const { token } = res.data;
-      localStorage.setItem("token", token);
-      toast.success("Logged in");
-      nav("/dashboard");
+      const result = await login({ email, password });
+      if (result.ok) {
+        nav("/dashboard");
+      }
     } catch (err) {
-      toast.error(err?.response?.data?.error?.message || "Login failed");
+      // handled in context
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="container-max py-12">
-      <div className="max-w-md mx-auto card p-6 rounded">
+    <div className="container-max h-screen flex items-center justify-center">
+      <div className="max-w-md sm:min-w-[400px] card p-6 rounded">
         <h2 className="text-2xl font-semibold neon-text">Sign in</h2>
         <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
           <input

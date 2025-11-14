@@ -20,7 +20,7 @@ export default function LoanBrochures() {
   }, []);
 
   return (
-    <div className="container-max py-12">
+    <div className="container-max py-36 h-screen">
       <h2 className="text-2xl font-semibold neon-text">Loan Brochures</h2>
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         {items.length === 0 && <div className="card p-4">No brochures found</div>}

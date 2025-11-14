@@ -35,7 +35,15 @@ export const users = {
   me: () => api.get(`/users/me`),
   getPublic: (userId) => api.get(`/users/${userId}/public`),
   getPrivate: (userId) => api.get(`/users/${userId}/private`),
-  updateMe: (payload) => api.patch(`/users/update-me`, payload),
+  // updateMe can accept either a JSON payload or FormData (for avatar upload)
+  updateMe: (payload) => {
+    if (payload instanceof FormData) {
+      return api.patch(`/users/update-me`, payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+    }
+    return api.patch(`/users/update-me`, payload);
+  },
   toggleRole: (payload) => api.post(`/users/toggle-my-role`, payload),
 };
 
