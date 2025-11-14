@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+	/* Neon palette */
+	--neon-primary: #00ffe1;
+	--neon-accent: #7c4dff;
+	--neon-pink: #ff2d95;
+	--neon-yellow: #fff14d;
+	--bg-dark: #0b0f14;
+	--muted: #94a3b8;
+
+	/* Spacing / layout */
+	--max-content-width: 1200px;
+}
+
+/* @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap'); */
+
+html, body, #root {
+	height: 100%;
+}
+
+body {
+	font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+	background: linear-gradient(180deg, rgba(11,15,20,1) 0%, rgba(8,10,12,1) 100%);
+	color: white;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* Utility to use neon text */
+.neon-text {
+	color: var(--neon-primary);
+	text-shadow: 0 0 6px rgba(0,255,225,0.15), 0 0 14px rgba(124,77,255,0.06);
+}
+
+.card {
+	background: rgba(255,255,255,0.03);
+	border: 1px solid rgba(255,255,255,0.04);
+	backdrop-filter: blur(6px);
+}
+
+.btn-neon {
+	background: linear-gradient(90deg, var(--neon-primary), var(--neon-accent));
+	color: #041018;
+}
+
+/* Responsive container max width */
+.container-max {
+	max-width: var(--max-content-width);
+	margin-left: auto;
+	margin-right: auto;
+	padding-left: 1rem;
+	padding-right: 1rem;
+}
