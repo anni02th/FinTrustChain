@@ -1,0 +1,16 @@
+/* App level styles */
+html, body, #root {
+	height: 100%;
+}
+
+.main-content {
+	min-height: calc(100vh - 136px);
+}
+
+.logo-mark {
+	width: 36px;
+	height: 36px;
+	border-radius: 8px;
+	background: linear-gradient(90deg, var(--neon-primary), var(--neon-accent));
+	box-shadow: 0 4px 18px rgba(124,77,255,0.18);
+}
