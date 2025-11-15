@@ -6,15 +6,15 @@ import { useAuth } from "../context/AuthContext";
 import { notifications as notificationsApi } from "../api/api";
 
 const receiverTabs = [
-  { to: "/", label: "Home" },
   { to: "/dashboard", label: "Dashboard" },
+  { to: "/how-it-works", label: "Guide" },
   { to: "/about", label: "About" },
 ];
 
 const lenderTabs = [
-  { to: "/", label: "Home" },
   { to: "/lender-dashboard", label: "Dashboard" },
   { to: "/create-brochure", label: "Create Brochure" },
+  { to: "/how-it-works", label: "Guide" },
   { to: "/about", label: "About" },
 ];
 
@@ -26,11 +26,11 @@ export default function Header() {
   const [isSticky, setIsSticky] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const tabs = user?.role === "LENDER" ? lenderTabs : receiverTabs;
+  const tabs = user?.currentRole === "LENDER" ? lenderTabs : receiverTabs;
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    // No need for navigate - logout handles redirect
   };
 
   useEffect(() => {
@@ -47,7 +47,8 @@ export default function Header() {
           const res = await notificationsApi.getUnreadCount();
           setUnreadCount(res.data?.data?.count || res.data?.count || 0);
         } catch (err) {
-          console.error("Failed to load unread count", err);
+          // Silently fail if notifications endpoint doesn't exist
+          // console.error("Failed to load unread count", err);
         }
       }
     };

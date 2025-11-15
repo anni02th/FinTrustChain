@@ -4,7 +4,7 @@ import {
   guarantorRequests,
   loanRequests,
   brochures,
-  users,
+  contracts as contractsApi,
 } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -25,21 +25,20 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
 
-  // Guarantor selection states
-  const [guarantorSearch, setGuarantorSearch] = useState("");
-  const [guarantorResults, setGuarantorResults] = useState([]);
+  // Guarantor selection states - using endorsers
+  const [myEndorsers, setMyEndorsers] = useState([]);
   const [selectedGuarantor, setSelectedGuarantor] = useState(null);
-  const [searching, setSearching] = useState(false);
   const [purpose, setPurpose] = useState("");
 
   useEffect(() => {
     loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const [statsRes, contractsRes, grRes, lrRes, brochuresRes] =
+      const [statsRes, contractsRes, grRes, lrRes, brochuresRes, endorsersRes] =
         await Promise.all([
           dashboard.myStats().catch(() => ({ data: {} })),
           dashboard
@@ -52,22 +51,33 @@ export default function Dashboard() {
             .getMy()
             .catch(() => ({ data: { data: { loanRequests: [] } } })),
           brochures.list().catch(() => ({ data: { data: { brochures: [] } } })),
+          dashboard
+            .myEndorsers()
+            .catch(() => ({ data: { data: { endorsers: [] } } })),
         ]);
 
       setStats(statsRes.data?.data?.stats || null);
       setContracts(contractsRes.data?.data?.contracts || []);
       setPendingGRequests(grRes.data?.data?.requests || []);
       setMyLoanRequests(lrRes.data?.data?.loanRequests || []);
+      setMyEndorsers(
+        endorsersRes.data?.data?.endorsers || endorsersRes.data?.endorsers || []
+      );
 
       // Filter brochures - only active ones, exclude user's own
       const allBrochures =
         brochuresRes.data?.data?.brochures ||
         brochuresRes.data?.brochures ||
         [];
-      const filtered = allBrochures.filter(
-        b =>
-          b.active && b.lender?._id !== user?._id && b.lender?.id !== user?.id
-      );
+
+      const filtered = allBrochures.filter(b => {
+        const isActive = b.active === true || b.active === undefined;
+        const lenderId = b.lender?._id || b.lender?.id || b.lender;
+        const userId = user?._id || user?.id;
+        const isNotOwnBrochure = lenderId !== userId;
+        return isActive && isNotOwnBrochure;
+      });
+
       setAvailableBrochures(filtered);
     } catch (err) {
       console.error("Failed to load dashboard", err);
@@ -77,11 +87,14 @@ export default function Dashboard() {
   };
 
   const toggleBrochureSelection = brochure => {
+    console.log("Toggling brochure:", brochure);
     setSelectedBrochures(prev => {
+      console.log("Current selected brochures:", prev);
       const exists = prev.find(
         b => (b._id || b.id) === (brochure._id || brochure.id)
       );
       if (exists) {
+        console.log("Removing brochure from selection");
         return prev.filter(
           b => (b._id || b.id) !== (brochure._id || brochure.id)
         );
@@ -90,25 +103,27 @@ export default function Dashboard() {
         alert("You can select maximum 3 brochures");
         return prev;
       }
+      console.log("Adding brochure to selection");
       return [...prev, brochure];
     });
   };
 
-  const handleSearchGuarantor = async () => {
-    if (!guarantorSearch.trim()) return;
-    setSearching(true);
+  const handleGuarantorResponse = async (requestId, accepted) => {
     try {
-      const res = await users.search(guarantorSearch);
-      const results = res.data?.data?.users || res.data?.users || [];
-      setGuarantorResults(results);
+      await guarantorRequests.respond(requestId, { accepted });
+      loadDashboard();
     } catch (err) {
-      console.error("Search failed", err);
-    } finally {
-      setSearching(false);
+      alert(err.response?.data?.message || "Failed to respond to request");
     }
   };
 
   const handleApplyForLoan = async () => {
+    console.log("=== Apply for Loan ===");
+    console.log("Selected brochures:", selectedBrochures);
+    console.log("Selected guarantor:", selectedGuarantor);
+    console.log("Purpose:", purpose);
+    console.log("User UPI:", user?.upiId);
+
     // Check if user already has an active loan request
     const hasActiveLoanRequest = myLoanRequests.some(
       lr =>
@@ -126,6 +141,7 @@ export default function Dashboard() {
     }
 
     if (selectedBrochures.length === 0) {
+      console.error("No brochures selected!");
       alert("Please select at least one brochure");
       return;
     }
@@ -148,30 +164,27 @@ export default function Dashboard() {
 
     setApplying(true);
     try {
-      const formData = new FormData();
+      // Create single loan request with all selected brochures
+      const brochureIds = selectedBrochures.map(b => b._id || b.id);
+      const guarantorId = selectedGuarantor._id || selectedGuarantor.id;
 
-      // Create loan request with selected brochures
-      for (const brochure of selectedBrochures) {
-        formData.append("brochureId", brochure._id || brochure.id);
-        formData.append(
-          "guarantorId",
-          selectedGuarantor._id || selectedGuarantor.id
-        );
-        formData.append("purpose", purpose);
+      const payload = {
+        brochureIds,
+        guarantorId,
+        purpose,
+      };
 
-        await loanRequests.create(formData);
-      }
+      console.log("Creating loan request with payload:", payload);
+      await loanRequests.create(payload);
 
       alert(
-        `${selectedBrochures.length} loan request(s) created successfully!`
+        `Loan request created successfully for ${selectedBrochures.length} brochure(s)!`
       );
 
       // Reset form
       setSelectedBrochures([]);
       setSelectedGuarantor(null);
       setPurpose("");
-      setGuarantorSearch("");
-      setGuarantorResults([]);
 
       // Reload dashboard
       loadDashboard();
@@ -214,7 +227,8 @@ export default function Dashboard() {
 
   const isGuarantorEligible = guarantor => {
     if (!guarantor) return false;
-    if (guarantor._id === user?._id || guarantor.id === user?.id) return false;
+    // Endorsers can be guarantors (they're different users by definition)
+    // Just check TI requirement
     if (guarantor.trustIndex < 500) return false;
     return true;
   };
@@ -447,31 +461,20 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div>
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="text"
-                      value={guarantorSearch}
-                      onChange={e => setGuarantorSearch(e.target.value)}
-                      onKeyPress={e =>
-                        e.key === "Enter" &&
-                        (e.preventDefault(), handleSearchGuarantor())
-                      }
-                      placeholder="Search by name or email..."
-                      className="flex-1 p-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSearchGuarantor}
-                      disabled={searching}
-                      className="px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-lg text-white font-medium disabled:opacity-50"
-                    >
-                      {searching ? "..." : "Search"}
-                    </button>
-                  </div>
-
-                  {guarantorResults.length > 0 && (
+                  <p className="text-sm text-gray-400 mb-3">
+                    Select one of your endorsers as guarantor (TI ≥ 500
+                    required)
+                  </p>
+                  {myEndorsers.length === 0 ? (
+                    <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-center">
+                      <p className="text-yellow-400 text-sm">
+                        You don't have any endorsers yet. Get endorsed by other
+                        users to use them as guarantors.
+                      </p>
+                    </div>
+                  ) : (
                     <div className="space-y-2">
-                      {guarantorResults.map(g => {
+                      {myEndorsers.map(g => {
                         const eligible = isGuarantorEligible(g);
                         return (
                           <div
@@ -508,7 +511,6 @@ export default function Dashboard() {
                                   type="button"
                                   onClick={() => {
                                     setSelectedGuarantor(g);
-                                    setGuarantorResults([]);
                                   }}
                                   className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded text-white text-sm"
                                 >
@@ -534,7 +536,12 @@ export default function Dashboard() {
             {/* Apply Button */}
             <button
               onClick={handleApplyForLoan}
-              disabled={applying || !selectedGuarantor || !purpose.trim()}
+              disabled={
+                applying ||
+                !selectedGuarantor ||
+                !purpose.trim() ||
+                selectedBrochures.length === 0
+              }
               className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg text-white font-medium hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {applying
@@ -543,6 +550,14 @@ export default function Dashboard() {
                     selectedBrochures.length > 1 ? "s" : ""
                   }`}
             </button>
+
+            {/* Validation helper text */}
+            {(!selectedGuarantor || !purpose.trim()) && (
+              <p className="text-xs text-yellow-400 mt-2 text-center">
+                {!purpose.trim() && "Please enter purpose. "}
+                {!selectedGuarantor && "Please select a guarantor."}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -605,37 +620,109 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="space-y-3">
-            {contracts.map(c => (
-              <div
-                key={c._id}
-                className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all cursor-pointer"
-                onClick={() => navigate(`/contracts/${c._id}`)}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-medium text-white">
-                      Contract #{c.contractId || c._id?.slice(-6)}
+            {contracts.map(c => {
+              const isLender =
+                user?._id === c.lender?._id || user?.id === c.lender?._id;
+              const isReceiver =
+                user?._id === c.receiver?._id || user?.id === c.receiver?._id;
+              const isGuarantor =
+                user?._id === c.guarantor?._id || user?.id === c.guarantor?._id;
+
+              let myRole = "";
+              if (isLender) myRole = "Lender";
+              else if (isReceiver) myRole = "Receiver";
+              else if (isGuarantor) myRole = "Guarantor";
+
+              const needsMySignature =
+                (isLender && !c.signatures?.lender) ||
+                (isReceiver && !c.signatures?.receiver) ||
+                (isGuarantor && !c.signatures?.guarantor);
+
+              return (
+                <div
+                  key={c._id}
+                  className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="font-medium text-white">
+                        Contract #{c.contractId || c._id?.slice(-6)}
+                      </div>
+                      <div className="text-sm text-gray-300 mt-1">
+                        Lender: {c.lender?.name} • ₹
+                        {c.principal?.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-blue-400 mt-1">
+                        Role: {myRole}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Next EMI:{" "}
+                        {c.nextEMIDate
+                          ? new Date(c.nextEMIDate).toLocaleDateString()
+                          : "N/A"}
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-300 mt-1">
-                      Lender: {c.lender?.name} • ₹
-                      {c.principal?.toLocaleString()}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Next EMI:{" "}
-                      {c.nextEMIDate
-                        ? new Date(c.nextEMIDate).toLocaleDateString()
-                        : "N/A"}
+                    <div className="flex items-center gap-3">
+                      {getStatusBadge(c.status)}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {getStatusBadge(c.status)}
-                    <button className="px-3 py-1 bg-blue-500 hover:bg-blue-600 rounded text-white text-xs font-medium">
-                      View Details →
+                  <div className="flex gap-2 mt-3">
+                    {needsMySignature && c.status === "PENDING_SIGNATURES" && (
+                      <button
+                        onClick={async e => {
+                          e.stopPropagation();
+                          if (confirm("Sign this contract?")) {
+                            try {
+                              await contractsApi.sign(c._id);
+                              alert("Contract signed successfully!");
+                              loadDashboard();
+                            } catch (err) {
+                              alert(
+                                err.response?.data?.message || "Failed to sign"
+                              );
+                            }
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 bg-green-500 hover:bg-green-600 rounded text-white text-sm font-medium"
+                      >
+                        Sign Contract
+                      </button>
+                    )}
+                    <button
+                      onClick={async e => {
+                        e.stopPropagation();
+                        try {
+                          const res = await contractsApi.downloadPdf(c._id);
+                          const url = window.URL.createObjectURL(
+                            new Blob([res.data])
+                          );
+                          const link = document.createElement("a");
+                          link.href = url;
+                          link.setAttribute(
+                            "download",
+                            `contract_${c.contractId || c._id}.pdf`
+                          );
+                          document.body.appendChild(link);
+                          link.click();
+                          link.remove();
+                        } catch {
+                          alert("Failed to download PDF");
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 rounded text-white text-sm font-medium"
+                    >
+                      Download PDF
+                    </button>
+                    <button
+                      onClick={() => navigate(`/contracts/${c._id}`)}
+                      className="flex-1 px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-white text-sm"
+                    >
+                      View Details
                     </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

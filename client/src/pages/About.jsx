@@ -185,32 +185,6 @@ export default function About() {
           </div>
         </div>
       </section>
-
-      {/* CTA Section */}
-      <section className="py-12">
-        <div className="container-max mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Ready to Get Started?
-          </h2>
-          <p className="text-gray-300 mb-6">
-            Join our community and experience trust-based lending
-          </p>
-          <div className="flex gap-4 justify-center">
-            <Link
-              to="/register"
-              className="btn-neon px-6 py-3 rounded-md font-semibold"
-            >
-              Create Account
-            </Link>
-            <Link
-              to="/login"
-              className="px-6 py-3 rounded-md text-white border border-white/6 hover:bg-white/10"
-            >
-              Sign In
-            </Link>
-          </div>
-        </div>
-      </section>
     </main>
   );
 }

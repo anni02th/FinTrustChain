@@ -39,13 +39,32 @@ export default function UpdateProfile() {
       formData.append("upiId", upiId);
       formData.append("bio", bio);
 
-      await users.updateMe(formData);
+      console.log("Sending update request with:", {
+        hasAvatar: !!avatarFile,
+        upiId,
+        bio,
+      });
+
+      const response = await users.updateMe(formData);
+      console.log("Update response:", response);
+
       alert("Profile updated successfully!");
       await refreshUser();
       navigate("/profile");
     } catch (err) {
       console.error("Profile update failed", err);
-      alert(err?.response?.data?.message || "Failed to update profile");
+      console.error("Error details:", {
+        message: err.message,
+        response: err.response,
+        status: err.response?.status,
+        data: err.response?.data,
+      });
+
+      const errorMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to update profile. Please check your connection.";
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }

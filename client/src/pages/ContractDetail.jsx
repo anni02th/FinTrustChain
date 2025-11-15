@@ -19,6 +19,9 @@ export default function ContractDetail() {
   const [disbursing, setDisbursing] = useState(false);
   const [paymentProof, setPaymentProof] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [receiverUpi, setReceiverUpi] = useState("");
+  const [transactionId, setTransactionId] = useState("");
+  const [disbursalProof, setDisbursalProof] = useState(null);
 
   const loadContract = async () => {
     setLoading(true);
@@ -33,15 +36,32 @@ export default function ContractDetail() {
           .catch(() => ({ data: { data: { payments: [] } } })),
       ]);
 
-      setContract(
-        contractRes.data?.data?.contract || contractRes.data?.contract
-      );
+      const contractData =
+        contractRes.data?.data?.contract || contractRes.data?.contract;
+
+      setContract(contractData);
       setEmiSchedule(
         scheduleRes.data?.data?.schedule || scheduleRes.data?.schedule || []
       );
       setPaymentHistory(
         historyRes.data?.data?.payments || historyRes.data?.payments || []
       );
+
+      // Fetch receiver UPI if user is lender and contract needs disbursal
+      if (
+        contractData &&
+        (contractData.status === "AWAITING_DISBURSAL" ||
+          contractData.status === "PENDING_SIGNATURES") &&
+        (user?._id === contractData.lender?._id ||
+          user?.id === contractData.lender?._id)
+      ) {
+        try {
+          const upiRes = await contracts.receiverUpi(id);
+          setReceiverUpi(upiRes.data?.data?.upiId || upiRes.data?.upiId || "");
+        } catch (err) {
+          console.error("Failed to fetch receiver UPI", err);
+        }
+      }
     } catch (err) {
       console.error("Failed to load contract", err);
       alert("Failed to load contract");
@@ -70,21 +90,33 @@ export default function ContractDetail() {
     }
   };
 
-  const handleDisburse = async () => {
-    if (!confirm(`Disburse ₹${contract?.principal?.toLocaleString()}?`)) return;
+  const handleDisburse = async e => {
+    e.preventDefault();
+    if (!transactionId || !disbursalProof) {
+      alert("Please provide transaction ID and upload payment proof");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Confirm disbursal of ₹${contract?.principal?.toLocaleString()}?`
+      )
+    )
+      return;
+
     setDisbursing(true);
     try {
-      // Mock PhonePe payment
-      const mockTxnId = `TXN${Date.now()}`;
-      await payments.disburse({
-        contractId: id,
-        amount: contract.principal,
-        transactionId: mockTxnId,
-      });
-      alert(`₹${contract.principal.toLocaleString()} disbursed successfully!`);
+      const formData = new FormData();
+      formData.append("transactionId", transactionId);
+      formData.append("proof", disbursalProof);
+
+      await contracts.confirmDisbursal(id, formData);
+      alert("Disbursal proof submitted successfully!");
+      setTransactionId("");
+      setDisbursalProof(null);
       loadContract();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to disburse payment");
+      alert(err.response?.data?.message || "Failed to submit disbursal proof");
     } finally {
       setDisbursing(false);
     }
@@ -112,6 +144,36 @@ export default function ContractDetail() {
       alert(err.response?.data?.message || "Failed to upload proof");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleViewDisbursalProof = async () => {
+    try {
+      // Fetch the image as a blob with authentication
+      const response = await contracts.disbursalProof(id);
+      const blob = new Blob([response.data], {
+        type: response.headers["content-type"],
+      });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank");
+
+      // Clean up the blob URL after a delay
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to load disbursal proof");
+    }
+  };
+
+  const handleConfirmReceipt = async () => {
+    if (!confirm("Confirm that you have received the loan amount?")) return;
+    try {
+      await contracts.confirmReceipt(id);
+      alert(
+        "Receipt confirmed! The loan is now active. You can now make EMI payments."
+      );
+      loadContract();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to confirm receipt");
     }
   };
 
@@ -321,7 +383,7 @@ export default function ContractDetail() {
       {/* RECEIVER-SPECIFIC SECTIONS */}
       {isReceiver && (
         <>
-          {contract.status === "PENDING_RECEIVER_SIGNATURE" && (
+          {contract.status === "PENDING_SIGNATURES" && (
             <div className="bg-yellow-500/20 border border-yellow-500 rounded-lg p-6 mb-6">
               <h3 className="font-semibold text-yellow-400 mb-3">
                 Action Required: Sign Contract
@@ -339,36 +401,70 @@ export default function ContractDetail() {
             </div>
           )}
 
+          {contract.status === "AWAITING_RECEIPT_CONFIRMATION" && (
+            <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-6 mb-6">
+              <h3 className="font-semibold text-blue-400 mb-3">
+                Confirm Receipt of Funds
+              </h3>
+              <p className="text-sm text-gray-300 mb-4">
+                The lender has disbursed ₹{contract.principal?.toLocaleString()}
+                . Please verify receipt and view the payment proof before
+                confirming.
+              </p>
+
+              <div className="flex gap-3 mb-4">
+                <button
+                  onClick={handleViewDisbursalProof}
+                  className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-sm font-medium transition-colors"
+                >
+                  View Disbursal Proof
+                </button>
+              </div>
+
+              <button
+                onClick={handleConfirmReceipt}
+                className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 rounded-lg text-white font-medium transition-colors"
+              >
+                Confirm Receipt
+              </button>
+
+              <p className="mt-3 text-xs text-gray-500">
+                Only confirm after verifying the amount has been credited to
+                your account.
+              </p>
+            </div>
+          )}
+
           {contract.status === "ACTIVE" && (
             <div className="bg-white/5 border border-white/10 rounded-lg p-6 mb-6">
               <h3 className="font-semibold text-white mb-4">
-                Upload Payment Proof
+                Make EMI Payment
               </h3>
-              <form onSubmit={handleUploadProof} className="space-y-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">
-                    Payment Proof (Screenshot/Receipt)
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={e => setPaymentProof(e.target.files[0])}
-                    className="block w-full text-sm text-gray-400
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-blue-500 file:text-white
-                      hover:file:bg-blue-600"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={uploading || !paymentProof}
-                  className="px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-lg text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {uploading ? "Uploading..." : "Submit Proof"}
-                </button>
-              </form>
+              <p className="text-sm text-gray-400 mb-4">
+                Click below to proceed to the payment gateway and make your EMI
+                payment.
+              </p>
+              <button
+                onClick={async () => {
+                  try {
+                    const paymentRes = await payments.pay({ contractId: id });
+                    const redirectUrl = paymentRes.data?.data?.redirectUrl;
+                    if (redirectUrl) {
+                      window.location.href = redirectUrl;
+                    } else {
+                      alert("Failed to initiate payment");
+                    }
+                  } catch (err) {
+                    alert(
+                      err.response?.data?.message ||
+                        "Failed to initiate payment"
+                    );
+                  }
+                }}
+                className="px-6 py-3 bg-green-500 hover:bg-green-600 rounded-lg text-white font-medium transition-colors"
+              >
+                Pay EMI
+              </button>
             </div>
           )}
         </>
@@ -377,7 +473,7 @@ export default function ContractDetail() {
       {/* LENDER-SPECIFIC SECTIONS */}
       {isLender && (
         <>
-          {contract.status === "PENDING_LENDER_SIGNATURE" && (
+          {contract.status === "PENDING_SIGNATURES" && (
             <div className="bg-yellow-500/20 border border-yellow-500 rounded-lg p-6 mb-6">
               <h3 className="font-semibold text-yellow-400 mb-3">
                 Action Required: Sign Contract
@@ -392,27 +488,95 @@ export default function ContractDetail() {
             </div>
           )}
 
-          {contract.status === "PENDING_DISBURSEMENT" && (
+          {contract.status === "AWAITING_DISBURSAL" && (
             <div className="bg-orange-500/20 border border-orange-500 rounded-lg p-6 mb-6">
               <h3 className="font-semibold text-orange-400 mb-3">
                 Disburse Loan Amount
               </h3>
-              <p className="text-sm text-gray-300 mb-2">
-                Receiver UPI:{" "}
-                <span className="font-mono">
-                  {contract.receiver?.upiId || "N/A"}
-                </span>
+
+              {/* Receiver UPI Information */}
+              <div className="bg-white/5 rounded-lg p-4 mb-4">
+                <div className="text-sm text-gray-400 mb-1">
+                  Receiver UPI ID:
+                </div>
+                <div className="font-mono text-lg text-white">
+                  {receiverUpi || "Loading..."}
+                </div>
+                {receiverUpi && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(receiverUpi);
+                      alert("UPI ID copied to clipboard!");
+                    }}
+                    className="mt-2 text-xs text-blue-400 hover:text-blue-300"
+                  >
+                    Copy UPI ID
+                  </button>
+                )}
+              </div>
+
+              <div className="bg-white/5 rounded-lg p-4 mb-4">
+                <div className="text-sm text-gray-400 mb-1">
+                  Amount to Transfer:
+                </div>
+                <div className="text-2xl font-bold text-green-400">
+                  ₹{contract.principal?.toLocaleString()}
+                </div>
+              </div>
+
+              {/* Disbursal Proof Form */}
+              <form onSubmit={handleDisburse} className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">
+                    Transaction ID <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={transactionId}
+                    onChange={e => setTransactionId(e.target.value)}
+                    placeholder="Enter transaction ID from payment app"
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">
+                    Payment Proof (Screenshot/Receipt){" "}
+                    <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={e => setDisbursalProof(e.target.files[0])}
+                    className="block w-full text-sm text-gray-400
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-blue-500 file:text-white
+                      hover:file:bg-blue-600"
+                    required
+                  />
+                  {disbursalProof && (
+                    <div className="mt-2 text-xs text-green-400">
+                      Selected: {disbursalProof.name}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={disbursing || !transactionId || !disbursalProof}
+                  className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 rounded-lg text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {disbursing ? "Submitting..." : "Submit Disbursal Proof"}
+                </button>
+              </form>
+
+              <p className="mt-4 text-xs text-gray-500">
+                After submitting, the receiver will be notified to confirm
+                receipt of funds.
               </p>
-              <p className="text-sm text-gray-300 mb-4">
-                Amount: ₹{contract.principal?.toLocaleString()}
-              </p>
-              <button
-                onClick={handleDisburse}
-                disabled={disbursing}
-                className="px-6 py-3 bg-green-500 hover:bg-green-600 rounded-lg text-white font-medium transition-colors disabled:opacity-50"
-              >
-                {disbursing ? "Processing..." : "Disburse via PhonePe (Mock)"}
-              </button>
             </div>
           )}
 

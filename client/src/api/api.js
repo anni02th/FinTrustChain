@@ -55,6 +55,7 @@ export const dashboard = {
   myPending: () => api.get(`/dashboard/my-pending-actions`),
   myActiveContracts: () => api.get(`/dashboard/my-active-contracts`),
   myEndorsers: () => api.get(`/dashboard/my-endorsers`),
+  myEndorsees: () => api.get(`/dashboard/my-endorsees`),
   tiHistory: () => api.get(`/dashboard/ti-history`),
   eligibleGuarantors: () => api.get(`/dashboard/eligible-guarantors`),
   eligibleBrochures: () => api.get(`/dashboard/eligible-brochures`),
@@ -96,7 +97,8 @@ export const contracts = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
   receiverUpi: id => api.get(`/contracts/${id}/receiver-upi`),
-  disbursalProof: id => api.get(`/contracts/${id}/disbursal-proof`),
+  disbursalProof: id =>
+    api.get(`/contracts/${id}/disbursal-proof`, { responseType: "blob" }),
   triggerDefaultCheck: payload =>
     api.post(`/contracts/admin/trigger-default-check`, payload),
   guarantorPay: id => api.post(`/contracts/${id}/guarantor-pay`),
@@ -147,6 +149,7 @@ export const lender = {
   getPendingRequests: params => api.get(`/lender/requests`, { params }),
   getMyContracts: params => api.get(`/lender/contracts`, { params }),
   acceptRequest: requestId => api.post(`/lender/requests/${requestId}/accept`),
+  rejectRequest: requestId => api.post(`/lender/requests/${requestId}/reject`),
 };
 
 export default api;

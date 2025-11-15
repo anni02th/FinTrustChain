@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { users as usersApi, endorsements } from "../api/api";
+import { users as usersApi, endorsements, dashboard } from "../api/api";
 import { useNavigate } from "react-router-dom";
 import TrustIndexHistory from "../components/TrustIndexHistory";
 import Loader from "../components/Loader";
@@ -13,10 +13,13 @@ export default function Profile() {
   const [canToggle, setCanToggle] = useState(true);
   const [endorsementsGiven, setEndorsementsGiven] = useState([]);
   const [endorsementsReceived, setEndorsementsReceived] = useState([]);
+  const [endorsersList, setEndorsersList] = useState([]);
+  const [endorseesList, setEndorseesList] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [endorsing, setEndorsing] = useState(null);
+  const [removingEndorsee, setRemovingEndorsee] = useState(null);
 
   useEffect(() => {
     loadProfile();
@@ -25,14 +28,21 @@ export default function Profile() {
   const loadProfile = async () => {
     setLoading(true);
     try {
-      const [givenRes, receivedRes] = await Promise.all([
-        endorsements
-          .given()
-          .catch(() => ({ data: { data: { endorsements: [] } } })),
-        endorsements
-          .received()
-          .catch(() => ({ data: { data: { endorsements: [] } } })),
-      ]);
+      const [givenRes, receivedRes, endorsersRes, endorseesRes] =
+        await Promise.all([
+          endorsements
+            .given()
+            .catch(() => ({ data: { data: { endorsements: [] } } })),
+          endorsements
+            .received()
+            .catch(() => ({ data: { data: { endorsements: [] } } })),
+          dashboard
+            .myEndorsers()
+            .catch(() => ({ data: { data: { endorsers: [] } } })),
+          dashboard
+            .myEndorsees()
+            .catch(() => ({ data: { data: { endorsees: [] } } })),
+        ]);
 
       setEndorsementsGiven(
         givenRes.data?.data?.endorsements || givenRes.data?.endorsements || []
@@ -41,6 +51,12 @@ export default function Profile() {
         receivedRes.data?.data?.endorsements ||
           receivedRes.data?.endorsements ||
           []
+      );
+      setEndorsersList(
+        endorsersRes.data?.data?.endorsers || endorsersRes.data?.endorsers || []
+      );
+      setEndorseesList(
+        endorseesRes.data?.data?.endorsees || endorseesRes.data?.endorsees || []
       );
     } catch (err) {
       console.error("Failed to load endorsements", err);
@@ -69,17 +85,21 @@ export default function Profile() {
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     try {
-      const res = await usersApi.search(searchQuery);
-      setSearchResults(res.data?.data?.users || res.data?.users || []);
+      // Search by User ID using the public profile endpoint
+      const res = await usersApi.getPublic(searchQuery.trim());
+      // Wrap single user in array for consistent rendering
+      setSearchResults([res.data?.data?.user || res.data?.user]);
     } catch (err) {
       console.error("Search failed", err);
+      alert(err.response?.data?.message || "User not found with this ID");
+      setSearchResults([]);
     }
   };
 
   const handleEndorse = async userId => {
     setEndorsing(userId);
     try {
-      await endorsements.create({ endorsedUserId: userId });
+      await endorsements.create({ receiverId: userId });
       alert("User endorsed successfully!");
       loadProfile();
       setSearchResults([]);
@@ -88,6 +108,20 @@ export default function Profile() {
       alert(err.response?.data?.message || "Failed to endorse user");
     } finally {
       setEndorsing(null);
+    }
+  };
+
+  const handleUnendorse = async userId => {
+    if (!confirm("Are you sure you want to un-endorse this user?")) return;
+    setRemovingEndorsee(userId);
+    try {
+      await endorsements.remove(userId);
+      alert("User un-endorsed successfully!");
+      loadProfile();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to un-endorse user");
+    } finally {
+      setRemovingEndorsee(null);
     }
   };
 
@@ -172,6 +206,12 @@ export default function Profile() {
             <div>
               <h1 className="text-2xl font-bold text-white">{user?.name}</h1>
               <div className="text-gray-300 text-sm mt-1">{user?.email}</div>
+              <div className="mt-1 text-xs text-gray-400">
+                User ID:{" "}
+                <span className="font-mono text-blue-400 select-all">
+                  {user?._id || user?.id}
+                </span>
+              </div>
               <div className="mt-3 flex flex-wrap gap-3 items-center">
                 <div className="text-sm">
                   Role:{" "}
@@ -324,16 +364,20 @@ export default function Profile() {
         {/* Search & Endorse Users */}
         <div className="border-t border-white/10 pt-4">
           <h3 className="font-medium text-gray-300 mb-3">
-            Search Users to Endorse
+            Search & Endorse User by ID
           </h3>
+          <p className="text-xs text-gray-400 mb-3">
+            You can only search users by their User ID. Ask them to share their
+            ID with you.
+          </p>
           <div className="flex gap-2 mb-4">
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onKeyPress={e => e.key === "Enter" && handleSearch()}
-              placeholder="Search by name or email..."
-              className="flex-1 p-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              placeholder="Enter User ID (e.g., 68ffa652ba7a9424713795bd)..."
+              className="flex-1 p-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
             />
             <button
               onClick={handleSearch}
@@ -392,6 +436,103 @@ export default function Profile() {
         >
           Update Profile
         </button>
+      </div>
+
+      {/* My Endorsers List (People who endorsed me - Read Only) */}
+      <div className="bg-white/5 border border-white/10 rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold text-white mb-4">
+          My Endorsers ({endorsersList.length})
+        </h2>
+        <p className="text-xs text-gray-400 mb-3">
+          People who have endorsed you. You cannot remove these endorsements.
+        </p>
+        {endorsersList.length === 0 ? (
+          <p className="text-gray-400 text-sm">No endorsers yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {endorsersList.map(endorser => (
+              <div
+                key={endorser._id}
+                className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center font-bold">
+                    {endorser.name?.[0]?.toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="font-medium text-white">
+                      {endorser.name}
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {endorser.email}
+                    </div>
+                    <div
+                      className={`text-sm font-semibold ${getTIColor(
+                        endorser.trustIndex
+                      )}`}
+                    >
+                      TI: {endorser.trustIndex}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* My Endorsees List (People I endorsed - Can Un-endorse) */}
+      <div className="bg-white/5 border border-white/10 rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold text-white mb-4">
+          My Endorsees ({endorseesList.length})
+        </h2>
+        <p className="text-xs text-gray-400 mb-3">
+          People you have endorsed. You can un-endorse them if needed.
+        </p>
+        {endorseesList.length === 0 ? (
+          <p className="text-gray-400 text-sm">
+            You haven't endorsed anyone yet.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {endorseesList.map(endorsee => (
+              <div
+                key={endorsee._id}
+                className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold">
+                    {endorsee.name?.[0]?.toUpperCase() || "?"}
+                  </div>
+                  <div>
+                    <div className="font-medium text-white">
+                      {endorsee.name || "Unknown"}
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {endorsee.email || ""}
+                    </div>
+                    <div
+                      className={`text-sm font-semibold ${getTIColor(
+                        endorsee.trustIndex || 0
+                      )}`}
+                    >
+                      TI: {endorsee.trustIndex || 0}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleUnendorse(endorsee._id)}
+                  disabled={removingEndorsee === endorsee._id}
+                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded text-white text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {removingEndorsee === endorsee._id
+                    ? "Un-endorsing..."
+                    : "Un-endorse"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* TrustIndex History */}

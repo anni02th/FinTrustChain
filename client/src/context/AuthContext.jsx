@@ -37,11 +37,12 @@ export function AuthProvider({ children }) {
     return () => (mounted = false);
   }, []);
 
-  const login = async (credentials) => {
+  const login = async credentials => {
     setLoading(true);
     try {
       const res = await auth.login(credentials);
-      const token = res?.data?.token || res?.data?.data?.token || res?.data?.token;
+      const token =
+        res?.data?.token || res?.data?.data?.token || res?.data?.token;
       if (!token) throw new Error("No token returned from server");
       localStorage.setItem("token", token);
       // fetch user
@@ -52,14 +53,16 @@ export function AuthProvider({ children }) {
       toast.success("Logged in");
       return { ok: true };
     } catch (err) {
-      toast.error(err?.response?.data?.message || err?.message || "Login failed");
+      toast.error(
+        err?.response?.data?.message || err?.message || "Login failed"
+      );
       return { ok: false, error: err };
     } finally {
       setLoading(false);
     }
   };
 
-  const register = async (formData) => {
+  const register = async formData => {
     setLoading(true);
     try {
       const res = await auth.register(formData);
@@ -73,7 +76,9 @@ export function AuthProvider({ children }) {
       toast.success("Account created");
       return { ok: true };
     } catch (err) {
-      toast.error(err?.response?.data?.message || err?.message || "Registration failed");
+      toast.error(
+        err?.response?.data?.message || err?.message || "Registration failed"
+      );
       return { ok: false, error: err };
     } finally {
       setLoading(false);
@@ -93,12 +98,18 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    // Clear all localStorage to remove any cached data
     localStorage.removeItem("token");
+    localStorage.clear();
     setUser(null);
+    // Force reload to clear all component state
+    window.location.href = "/login";
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -18,18 +18,18 @@ export default function CreateBrochure() {
     const newErrors = {};
 
     const amount = parseFloat(formData.amount);
-    if (!amount || amount < 5000 || amount > 50000) {
-      newErrors.amount = "Amount must be between ₹5,000 and ₹50,000";
+    if (!amount || amount < 500 || amount > 20000) {
+      newErrors.amount = "Amount must be between ₹500 and ₹20,000";
     }
 
     const rate = parseFloat(formData.interestRate);
-    if (!rate || rate < 18 || rate > 30) {
-      newErrors.interestRate = "Interest rate must be between 18% and 30%";
+    if (!rate || rate <= 0) {
+      newErrors.interestRate = "Interest rate must be greater than 0%";
     }
 
     const tenor = parseInt(formData.tenorDays);
-    if (!tenor || tenor < 30 || tenor > 365) {
-      newErrors.tenorDays = "Tenor must be between 30 and 365 days";
+    if (!tenor || tenor <= 0) {
+      newErrors.tenorDays = "Tenor must be at least 1 day";
     }
 
     setErrors(newErrors);
@@ -106,7 +106,7 @@ export default function CreateBrochure() {
                 name="amount"
                 value={formData.amount}
                 onChange={handleChange}
-                placeholder="10000"
+                placeholder="5000"
                 className={`w-full pl-8 p-3 rounded-lg bg-white/5 border ${
                   errors.amount ? "border-red-500" : "border-white/10"
                 } text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors`}
@@ -117,7 +117,7 @@ export default function CreateBrochure() {
               <p className="text-red-400 text-xs mt-1">{errors.amount}</p>
             )}
             <p className="text-xs text-gray-500 mt-1">
-              Range: ₹5,000 - ₹50,000
+              Range: ₹500 - ₹20,000 (Microcredit Platform)
             </p>
           </div>
 
@@ -132,7 +132,7 @@ export default function CreateBrochure() {
                 name="interestRate"
                 value={formData.interestRate}
                 onChange={handleChange}
-                placeholder="24"
+                placeholder="12"
                 step="0.1"
                 className={`w-full p-3 rounded-lg bg-white/5 border ${
                   errors.interestRate ? "border-red-500" : "border-white/10"
@@ -144,7 +144,9 @@ export default function CreateBrochure() {
             {errors.interestRate && (
               <p className="text-red-400 text-xs mt-1">{errors.interestRate}</p>
             )}
-            <p className="text-xs text-gray-500 mt-1">Range: 18% - 30%</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Set your desired interest rate
+            </p>
           </div>
 
           {/* Tenor */}
@@ -157,7 +159,7 @@ export default function CreateBrochure() {
               name="tenorDays"
               value={formData.tenorDays}
               onChange={handleChange}
-              placeholder="180"
+              placeholder="90"
               className={`w-full p-3 rounded-lg bg-white/5 border ${
                 errors.tenorDays ? "border-red-500" : "border-white/10"
               } text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors`}
@@ -166,7 +168,9 @@ export default function CreateBrochure() {
             {errors.tenorDays && (
               <p className="text-red-400 text-xs mt-1">{errors.tenorDays}</p>
             )}
-            <p className="text-xs text-gray-500 mt-1">Range: 30 - 365 days</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Borrower must pay before tenor expires (no EMI)
+            </p>
           </div>
 
           {/* Description */}

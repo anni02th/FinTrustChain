@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { lender, brochures } from "../api/api";
+import {
+  lender,
+  brochures,
+  dashboard,
+  contracts as contractsApi,
+} from "../api/api";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import Loader from "../components/Loader";
 
 export default function LenderDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [myBrochures, setMyBrochures] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [myContracts, setMyContracts] = useState([]);
@@ -26,8 +33,8 @@ export default function LenderDashboard() {
           lender
             .getPendingRequests()
             .catch(() => ({ data: { data: { requests: [] } } })),
-          lender
-            .getMyContracts()
+          dashboard
+            .myActiveContracts()
             .catch(() => ({ data: { data: { contracts: [] } } })),
         ]);
 
@@ -74,6 +81,17 @@ export default function LenderDashboard() {
       loadDashboard();
     } catch (err) {
       alert(err.response?.data?.message || "Failed to accept request");
+    }
+  };
+
+  const handleRejectRequest = async requestId => {
+    if (!confirm("Are you sure you want to reject this loan request?")) return;
+    try {
+      await lender.rejectRequest(requestId);
+      alert("Loan request has been rejected.");
+      loadDashboard();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to reject request");
     }
   };
 
@@ -134,7 +152,7 @@ export default function LenderDashboard() {
         <div className="bg-white/5 border border-white/10 rounded-lg p-6">
           <div className="text-gray-400 text-sm mb-2">Active Brochures</div>
           <div className="text-3xl font-bold text-green-400">
-            {myBrochures.filter(b => b.status === "ACTIVE").length}
+            {myBrochures.filter(b => b.active === true).length}
           </div>
         </div>
         <div className="bg-white/5 border border-white/10 rounded-lg p-6">
@@ -195,7 +213,15 @@ export default function LenderDashboard() {
                     <div className="text-lg font-semibold text-green-400">
                       {brochure.interestRate}%
                     </div>
-                    {getStatusBadge(brochure.status)}
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium border ${
+                        brochure.active
+                          ? "bg-green-500/20 text-green-400 border-green-500"
+                          : "bg-gray-500/20 text-gray-400 border-gray-500"
+                      }`}
+                    >
+                      {brochure.active ? "ACTIVE" : "INACTIVE"}
+                    </span>
                   </div>
                 </div>
 
@@ -208,25 +234,19 @@ export default function LenderDashboard() {
                 <div className="flex gap-2">
                   <button
                     onClick={() =>
-                      handleToggleBrochure(brochure._id, brochure.status)
+                      handleToggleBrochure(brochure._id, brochure.active)
                     }
                     className={`flex-1 px-3 py-2 rounded text-sm font-medium transition-colors ${
-                      brochure.status === "ACTIVE"
+                      brochure.active
                         ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
                         : "bg-green-500/20 text-green-400 hover:bg-green-500/30"
                     }`}
                   >
-                    {brochure.status === "ACTIVE" ? "Deactivate" : "Activate"}
-                  </button>
-                  <button
-                    onClick={() => navigate(`/edit-brochure/${brochure._id}`)}
-                    className="px-3 py-2 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30"
-                  >
-                    Edit
+                    {brochure.active ? "Deactivate" : "Activate"}
                   </button>
                   <button
                     onClick={() => handleDeleteBrochure(brochure._id)}
-                    className="px-3 py-2 bg-red-500/20 text-red-400 rounded text-sm hover:bg-red-500/30"
+                    className="flex-1 px-3 py-2 bg-red-500/20 text-red-400 rounded text-sm hover:bg-red-500/30"
                   >
                     Delete
                   </button>
@@ -253,94 +273,104 @@ export default function LenderDashboard() {
           </div>
         ) : (
           <div className="space-y-4">
-            {pendingRequests.map(request => (
-              <div
-                key={request._id}
-                className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-4 mb-3">
-                      <div>
-                        <div className="font-semibold text-white">
-                          {request.receiver?.name || "Receiver"}
-                        </div>
-                        <div
-                          className={`text-sm font-semibold ${getTIColor(
-                            request.receiver?.trustIndex
-                          )}`}
-                        >
-                          TI: {request.receiver?.trustIndex || "N/A"}
+            {pendingRequests.map(request => {
+              // Find the lender's brochure from the brochureIds array
+              const myBrochure = request.brochureIds?.find(
+                b => b.lender === user?.id
+              );
+              const brochure = myBrochure || request.brochureIds?.[0]; // Fallback to first brochure
+
+              return (
+                <div
+                  key={request._id}
+                  className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      {/* Receiver Profile Section */}
+                      <div className="flex items-center gap-4 mb-4 pb-4 border-b border-white/10">
+                        <img
+                          src={
+                            request.receiver?.avatarUrl ||
+                            "https://via.placeholder.com/64"
+                          }
+                          alt={request.receiver?.name}
+                          className="w-16 h-16 rounded-full object-cover border-2 border-white/20"
+                        />
+                        <div className="flex-1">
+                          <div className="font-semibold text-lg text-white">
+                            {request.receiver?.name || "Receiver"}
+                          </div>
+                          <div className="flex items-center gap-3 mt-1">
+                            <div
+                              className={`text-sm font-semibold ${getTIColor(
+                                request.receiver?.trustIndex
+                              )}`}
+                            >
+                              TI: {request.receiver?.trustIndex || "N/A"}
+                            </div>
+                            <div className="h-4 w-px bg-white/20"></div>
+                            <div className="text-sm text-gray-400">
+                              {request.receiver?.successfulRepayments || 0}{" "}
+                              loans repaid
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="h-8 w-px bg-white/10"></div>
-                      <div>
-                        <div className="text-sm text-gray-400">Guarantor</div>
-                        <div className="text-sm font-medium text-white">
-                          {request.guarantor?.name || "N/A"}
+
+                      <div className="grid grid-cols-3 gap-4 mb-3">
+                        <div>
+                          <div className="text-xs text-gray-400">Amount</div>
+                          <div className="text-lg font-bold text-white">
+                            ₹{brochure?.amount?.toLocaleString() || "N/A"}
+                          </div>
                         </div>
-                        <div
-                          className={`text-xs font-semibold ${getTIColor(
-                            request.guarantor?.trustIndex
-                          )}`}
-                        >
-                          TI: {request.guarantor?.trustIndex || "N/A"}
+                        <div>
+                          <div className="text-xs text-gray-400">Tenor</div>
+                          <div className="text-lg font-semibold text-white">
+                            {brochure?.tenorDays || "N/A"} days
+                          </div>
                         </div>
+                        <div>
+                          <div className="text-xs text-gray-400">Interest</div>
+                          <div className="text-lg font-semibold text-green-400">
+                            {brochure?.interestRate || "N/A"}%
+                          </div>
+                        </div>
+                      </div>
+
+                      {request.purpose && (
+                        <div className="mb-3">
+                          <div className="text-xs text-gray-400">Purpose</div>
+                          <div className="text-sm text-gray-300">
+                            {request.purpose}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="text-xs text-gray-500">
+                        Requested {new Date(request.createdAt).toLocaleString()}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 mb-3">
-                      <div>
-                        <div className="text-xs text-gray-400">Amount</div>
-                        <div className="text-lg font-bold text-white">
-                          ₹{request.amount?.toLocaleString()}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-400">Tenor</div>
-                        <div className="text-lg font-semibold text-white">
-                          {request.tenorDays} days
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-400">Interest</div>
-                        <div className="text-lg font-semibold text-green-400">
-                          {request.interestRate}%
-                        </div>
-                      </div>
+                    <div className="flex flex-col gap-2 ml-4">
+                      <button
+                        onClick={() => handleAcceptRequest(request._id)}
+                        className="px-6 py-2 bg-green-500 hover:bg-green-600 rounded text-white font-medium transition-colors"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleRejectRequest(request._id)}
+                        className="px-6 py-2 bg-red-500 hover:bg-red-600 rounded text-white font-medium transition-colors"
+                      >
+                        Reject
+                      </button>
                     </div>
-
-                    {request.purpose && (
-                      <div className="mb-3">
-                        <div className="text-xs text-gray-400">Purpose</div>
-                        <div className="text-sm text-gray-300">
-                          {request.purpose}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="text-xs text-gray-500">
-                      Requested {new Date(request.createdAt).toLocaleString()}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 ml-4">
-                    <button
-                      onClick={() => handleAcceptRequest(request._id)}
-                      className="px-6 py-2 bg-green-500 hover:bg-green-600 rounded text-white font-medium transition-colors"
-                    >
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => navigate(`/loan-requests/${request._id}`)}
-                      className="px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-white transition-colors"
-                    >
-                      View Details
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -363,49 +393,133 @@ export default function LenderDashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {myContracts.slice(0, 4).map(contract => (
-              <div
-                key={contract._id}
-                onClick={() => navigate(`/contracts/${contract._id}`)}
-                className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 cursor-pointer transition-all"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <div className="font-semibold text-white">
-                      Contract #{contract.contractId}
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      {contract.receiver?.name || "Receiver"}
-                    </div>
-                  </div>
-                  {getStatusBadge(contract.status)}
-                </div>
+            {myContracts.slice(0, 4).map(contract => {
+              const isLender =
+                user?._id === contract.lender?._id ||
+                user?.id === contract.lender?._id;
+              const isReceiver =
+                user?._id === contract.receiver?._id ||
+                user?.id === contract.receiver?._id;
+              const isGuarantor =
+                user?._id === contract.guarantor?._id ||
+                user?.id === contract.guarantor?._id;
 
-                <div className="grid grid-cols-2 gap-4 mb-3">
-                  <div>
-                    <div className="text-xs text-gray-400">Amount</div>
-                    <div className="font-semibold text-white">
-                      ₹{contract.principal?.toLocaleString()}
+              let myRole = "";
+              if (isLender) myRole = "Lender";
+              else if (isReceiver) myRole = "Receiver";
+              else if (isGuarantor) myRole = "Guarantor";
+
+              const needsMySignature =
+                (isLender && !contract.signatures?.lender) ||
+                (isReceiver && !contract.signatures?.receiver) ||
+                (isGuarantor && !contract.signatures?.guarantor);
+
+              return (
+                <div
+                  key={contract._id}
+                  className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="font-semibold text-white">
+                        Contract #
+                        {contract.contractId || contract._id?.slice(-6)}
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {contract.receiver?.name || "Receiver"}
+                      </div>
+                      <div className="text-xs text-blue-400 mt-1">
+                        Role: {myRole}
+                      </div>
+                    </div>
+                    {getStatusBadge(contract.status)}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                      <div className="text-xs text-gray-400">Amount</div>
+                      <div className="font-semibold text-white">
+                        ₹{contract.principal?.toLocaleString()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Tenor</div>
+                      <div className="font-semibold text-white">
+                        {contract.tenorDays} days
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="text-xs text-gray-400">Outstanding</div>
-                    <div className="font-semibold text-yellow-400">
-                      ₹
-                      {contract.outstandingAmount?.toLocaleString() ||
-                        contract.principal?.toLocaleString()}
+
+                  {contract.nextEMIDate && (
+                    <div className="text-xs text-gray-500 mb-3">
+                      Next EMI:{" "}
+                      {new Date(contract.nextEMIDate).toLocaleDateString()}
                     </div>
+                  )}
+
+                  <div className="flex gap-2 mt-3">
+                    {needsMySignature &&
+                      contract.status === "PENDING_SIGNATURES" && (
+                        <button
+                          onClick={async e => {
+                            e.stopPropagation();
+                            if (confirm("Sign this contract?")) {
+                              try {
+                                await contractsApi.sign(contract._id);
+                                alert("Contract signed successfully!");
+                                loadDashboard();
+                              } catch (err) {
+                                alert(
+                                  err.response?.data?.message ||
+                                    "Failed to sign"
+                                );
+                              }
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 bg-green-500 hover:bg-green-600 rounded text-white text-sm font-medium"
+                        >
+                          Sign Contract
+                        </button>
+                      )}
+                    <button
+                      onClick={async e => {
+                        e.stopPropagation();
+                        try {
+                          const res = await contractsApi.downloadPdf(
+                            contract._id
+                          );
+                          const url = window.URL.createObjectURL(
+                            new Blob([res.data])
+                          );
+                          const link = document.createElement("a");
+                          link.href = url;
+                          link.setAttribute(
+                            "download",
+                            `contract_${
+                              contract.contractId || contract._id
+                            }.pdf`
+                          );
+                          document.body.appendChild(link);
+                          link.click();
+                          link.remove();
+                        } catch {
+                          alert("Failed to download PDF");
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 rounded text-white text-sm font-medium"
+                    >
+                      Download PDF
+                    </button>
+                    <button
+                      onClick={() => navigate(`/contracts/${contract._id}`)}
+                      className="flex-1 px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-white text-sm"
+                    >
+                      View Details
+                    </button>
                   </div>
                 </div>
-
-                {contract.nextEMIDate && (
-                  <div className="text-xs text-gray-500">
-                    Next EMI:{" "}
-                    {new Date(contract.nextEMIDate).toLocaleDateString()}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

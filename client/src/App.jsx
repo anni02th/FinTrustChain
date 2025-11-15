@@ -15,10 +15,12 @@ import CreateBrochure from "./pages/CreateBrochure";
 import ContractViewer from "./pages/ContractViewer";
 import ContractDetail from "./pages/ContractDetail";
 import Payments from "./pages/Payments";
+import PaymentStatus from "./pages/PaymentStatus";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 import Contact from "./pages/Contact";
 import About from "./pages/About";
+import HowItWorks from "./pages/HowItWorks";
 import Services from "./pages/Services";
 import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
@@ -38,6 +40,7 @@ function App() {
         <Route path="/verify" element={<Verify />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/about" element={<About />} />
+        <Route path="/how-it-works" element={<HowItWorks />} />
         <Route path="/services" element={<Services />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/privacy" element={<Privacy />} />
@@ -113,6 +116,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Payments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment-status"
+          element={
+            <ProtectedRoute>
+              <PaymentStatus />
             </ProtectedRoute>
           }
         />
