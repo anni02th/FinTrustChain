@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
     passwordHash: { type: String, required: true },
-    avatarUrl: { type: String },
+    avatarUrl: { type: String },      // URL to user's avatar image
     passwordChangedAt: Date,
     role: { type: String, enum: ["USER", "ADMIN"], default: "USER" },
     currentRole: {
@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema(
       enum: ["LENDER", "RECEIVER"],
       default: "RECEIVER",
     },
-    trustIndex: { type: Number, default: 400, min: 0, max: 950 }, // Initial value
+    trustIndex: { type: Number, default: 400, min: 0, max: 950 }, 
     trustBreakdown: {
       base: Number,
       timeliness: Number,
@@ -43,13 +43,13 @@ const userSchema = new mongoose.Schema(
         date: { type: Date, default: Date.now },
       },
     ],
-    bio: { type: String, maxlength: 500 },
+    bio: { type: String, maxlength: 500 },  // User bio with max length
     status: {
       type: String,
       enum: ["ACTIVE", "BLOCKED"],
       default: "ACTIVE",
     },
-    upiId: {
+    upiId: {                        // UPI ID for payments
       type: String,
       trim: true,
       unique: true,

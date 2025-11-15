@@ -2,13 +2,13 @@
 
 :root {
 	/* Neon palette */
-	--neon-primary: #00ffe1;
+	--neon-primary-1: #4B45FF;
 	--neon-accent: #7c4dff;
 	--neon-pink: #ff2d95;
 	--neon-yellow: #fff14d;
 	--bg-dark: #0b0f14;
 	--muted: #94a3b8;
-
+	--neon-primary: #00ffe1;
 	/* Spacing / layout */
 	--max-content-width: 1200px;
 }
@@ -32,6 +32,10 @@ body {
 	color: var(--neon-primary);
 	text-shadow: 0 0 6px rgba(0,255,225,0.15), 0 0 14px rgba(124,77,255,0.06);
 }
+.neon-text-1 {
+	color: var(--neon-primary-1);
+	text-shadow: 0 0 6px rgba(0,255,225,0.15), 0 0 14px rgba(124,77,255,0.06);
+}
 
 .card {
 	background: rgba(255,255,255,0.03);
@@ -40,10 +44,15 @@ body {
 }
 
 .btn-neon {
-	background: linear-gradient(90deg, var(--neon-primary), var(--neon-accent));
+	background: #4B45FF;
 	color: #041018;
 }
-
+.bg-primary {
+	background: linear-gradient(90deg, var(--neon-primary), var(--neon-accent)) ;
+}
+.bg-primary-1 {
+	background: #4B45FF ;
+}
 /* Responsive container max width */
 .container-max {
 	max-width: var(--max-content-width);

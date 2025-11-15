@@ -1,6 +1,8 @@
-import React, { useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
+import Button from "./Button";
+import { useAuth } from "../context/AuthContext";
 
 const tabs = [
   { to: "/", label: "Home" },
@@ -11,11 +13,35 @@ const tabs = [
 ];
 
 export default function Header() {
-  const [open, setOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [isSticky, setIsSticky] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  useEffect(() => {
+    const onScroll = () => {
+      setIsSticky(window.scrollY > 50);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <header className="border-b border-white/6 from-black/60 to-black/40">
-      <div className="container-max flex items-center justify-between h-16">
+    <div
+      className={`fixed z-50 transition-all border-b-4 border-white/10 duration-300 flex justify-center items-center ${
+        isSticky
+          ? "top-0 left-0 right-0 w-full bg-black/90 shadow-md"
+          : "top-8 left-0 right-0 mx-4 md:mx-16 rounded-3xl bg-black/60"
+      }`}
+    >
+      <nav className="px-4 flex m-auto items-center justify-between rounded-3xl gap-4 max-w-[1200px] w-full backdrop-blur-lg py-3">
         <div className="flex items-center gap-3">
           <Link to="/" className="flex items-center gap-3">
             <span className="logo-mark" aria-hidden />
@@ -23,7 +49,7 @@ export default function Header() {
           </Link>
         </div>
 
-        <nav className="hidden md:flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-2">
           {tabs.map((t) => (
             <NavLink
               key={t.to}
@@ -37,37 +63,79 @@ export default function Header() {
             </NavLink>
           ))}
 
-          <Link to="/login" className="ml-4 btn-neon px-3 py-2 rounded text-sm font-semibold">
-            Sign in
-          </Link>
-        </nav>
+          {/* Right side: either auth actions or user menu */}
+          {user ? (
+            <div className="relative group flex items-center gap-3">
+              <Link to="/profile" className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-white/6 flex items-center justify-center">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl.startsWith('http') ? user.avatarUrl : `/img/users/${user.avatarUrl}`} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-sm text-gray-200">{(user.name || 'U')[0]}</div>
+                  )}
+                </div>
+                <div className="px-3 py-2 text-sm font-medium text-white cursor-pointer">{user.name}</div>
+              </Link>
+              <div className="absolute right-0 mt-2 opacity-0 group-hover:opacity-100 transform translate-y-1 group-hover:translate-y-0 transition-all">
+                <Button onClick={handleLogout} className="btn-neon px-3 py-2">Logout</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link to="/login" className="px-3 py-2 border border-white/6 rounded text-sm text-gray-200 hover:text-white">Sign in</Link>
+              <Link to="/register" className="btn-neon px-3 py-2 rounded text-sm">Register</Link>
+            </div>
+          )}
+        </div>
 
         <div className="md:hidden">
           <button
-            onClick={() => setOpen((s) => !s)}
+            onClick={() => setSidebarOpen((s) => !s)}
             className="p-2 rounded bg-white/3 text-white"
-            aria-label="Toggle menu"
+            aria-label="Toggle sidebar"
           >
-            {open ? <X size={18} /> : <Menu size={18} />}
+            {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
-      </div>
+      </nav>
 
-      {open && (
-        <div className="md:hidden bg-black/60 border-t border-white/4">
-          <div className="flex flex-col p-4 gap-2">
-            {tabs.map((t) => (
-              <Link key={t.to} to={t.to} className="text-gray-200 px-2 py-2 rounded hover:bg-white/2">
-                {t.label}
-              </Link>
-            ))}
+      {/* Mobile sidebar */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+          <aside className="absolute right-0 top-0 h-full w-72 bg-black/80 p-4 shadow-xl transform transition-transform">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="logo-mark" />
+                <div className="text-white font-semibold">FinTrustChain</div>
+              </div>
+              <button onClick={() => setSidebarOpen(false)} className="text-gray-300">Close</button>
+            </div>
 
-            <Link to="/login" className="mt-2 btn-neon px-3 py-2 rounded text-center font-semibold">
-              Sign in
-            </Link>
-          </div>
+            <nav className="flex flex-col gap-2">
+              {tabs.map((t) => (
+                <Link key={t.to} to={t.to} onClick={() => setSidebarOpen(false)} className="px-3 py-2 rounded text-gray-200 hover:bg-white/5">
+                  {t.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="mt-6 border-t border-white/6 pt-4">
+              {user ? (
+                <div className="flex flex-col gap-2">
+                  <div className="font-medium text-white">{user.name}</div>
+                  <Button onClick={() => { handleLogout(); setSidebarOpen(false); }} className="btn-neon">Logout</Button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <Link to="/login" onClick={() => setSidebarOpen(false)} className="px-3 py-2 border rounded text-gray-200">Sign in</Link>
+                  <Link to="/register" onClick={() => setSidebarOpen(false)} className="btn-neon px-3 py-2 rounded text-center">Register</Link>
+                </div>
+              )}
+            </div>
+          </aside>
         </div>
       )}
-    </header>
+    </div>
   );
 }

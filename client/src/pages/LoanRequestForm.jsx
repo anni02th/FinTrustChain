@@ -26,6 +26,10 @@ export default function LoanRequestForm() {
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   };
 
+  // Extra UI fields (optional)
+  const [purpose, setPurpose] = useState("");
+  const [phone, setPhone] = useState("");
+
   const submit = async (e) => {
     e.preventDefault();
     if (selected.length === 0) {
@@ -37,11 +41,20 @@ export default function LoanRequestForm() {
       return;
     }
 
+    // basic validation for optional fields
+    if (phone && !/^\+?[0-9\-\s]{6,20}$/.test(phone)) {
+      toast.error("Please enter a valid phone number.");
+      return;
+    }
+
     setLoading(true);
     try {
+      // server expects only brochureIds. We include optional fields locally for UX.
       await loanRequests.create({ brochureIds: selected });
       toast.success("Loan request submitted");
       setSelected([]);
+      setPurpose("");
+      setPhone("");
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to create loan request");
     } finally {
@@ -50,7 +63,7 @@ export default function LoanRequestForm() {
   };
 
   return (
-    <div className="container-max py-12">
+    <div className="container-max py-36 h-screen">
       <div className="max-w-lg mx-auto card p-6 rounded">
         <h2 className="text-2xl neon-text font-semibold">Create Loan Request</h2>
 
@@ -71,8 +84,18 @@ export default function LoanRequestForm() {
               );
             })}
           </div>
+          <div className="mt-4 grid grid-cols-1 gap-3">
+            <label className="text-sm text-gray-300">Purpose (optional)</label>
+            <textarea value={purpose} onChange={(e)=>setPurpose(e.target.value)} rows={3} className="p-3 rounded bg-transparent border border-white/6" />
 
-          <button disabled={loading} className="btn-neon p-3 rounded mt-3">{loading?"Submitting...":"Submit request"}</button>
+            <label className="text-sm text-gray-300">Phone (optional)</label>
+            <input value={phone} onChange={(e)=>setPhone(e.target.value)} placeholder="+91-XXXXXXXXXX" className="p-3 rounded bg-transparent border border-white/6" />
+
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-gray-400">Selected: {selected.length}</div>
+              <button disabled={loading} className="btn-neon p-3 rounded">{loading?"Submitting...":"Submit request"}</button>
+            </div>
+          </div>
         </form>
       </div>
     </div>
