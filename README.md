@@ -34,7 +34,7 @@ FinTrustChain mimics the credit score system using a TrustIndex metric (0-950) a
 - 💰 **Flexible Lending**: Create and browse loan brochures with custom terms
 - 📈 **Analytics Dashboard**: Track trust index history and loan performance
 - 🔔 **Real-time Notifications**: Stay updated on loan requests, endorsements, and payments
-- 💳 **Payment Integration**: Mock payment gateway integration (Razorpay/Stripe)
+- 💳 **Payment Integration**: Mock payment gateway integration (Phonepe Mock UPI)
 
 ## Tech Stack
 
