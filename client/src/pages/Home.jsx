@@ -56,7 +56,7 @@ export default function Home() {
                   Get Started
                 </Link>
                 <Link
-                  to="/about"
+                  to="/how-it-works"
                   className="inline-block px-6 py-3 rounded-md text-white border border-white/6"
                 >
                   How it works

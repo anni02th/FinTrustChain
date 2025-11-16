@@ -44,9 +44,41 @@ body {
 }
 
 .btn-neon {
-	background: #4B45FF;
-	color: #041018;
+    padding: 12px 24px; /* py-3 px-6 */
+    background: #4B45FF; /* blue-500 → purple-500 */
+    border-radius: 0.5rem; /* rounded-lg */
+    color: #ffffff; /* text-white */
+    font-weight: 500; /* font-medium */
+    cursor: pointer;
 }
+
+/* Hover (blue-600 → purple-600) */
+.btn-neon:hover {
+    background: linear-gradient(to right, #5215f8, #4B45FF);
+	 transition: all ease;
+}
+
+/* Disabled */
+.btn-neon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
+.btn-normal {
+    padding: 12px 24px;      /* py-3 px-6 */
+    border-radius: 0.5rem;   /* rounded-lg */
+    border: 1px solid rgba(255, 255, 255, 0.2); /* border-white/20 */
+    background: transparent;
+    color: #ffffff;          /* text-white */
+    cursor: pointer;
+    transition: background-color 0.2s ease; /* transition-colors */
+}
+
+.btn-normal:hover {
+    background-color: rgba(255, 255, 255, 0.1); /* hover:bg-white/10 */
+}
+
 .bg-primary {
 	background: linear-gradient(90deg, var(--neon-primary), var(--neon-accent)) ;
 }
