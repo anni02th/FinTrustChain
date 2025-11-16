@@ -43,17 +43,17 @@ FinTrustChain mimics the credit score system using a TrustIndex metric (0-950) a
 - **Runtime**: Node.js
 - **Framework**: Express.js
 - **Database**: MongoDB Atlas
-- **Authentication**: JWT + Nodemailer (email verification)
+- **Authentication**: JWT + email verification : Nodemailer (dev) and Sendgrid api (prod)
 - **File Storage**: Multer
 - **PDF Generation**: pdf-lib
-- **Payment**: Razorpay/Stripe (mock)
+- **Payment**: Phonepe UPI (mock)
 
 ### Frontend
 
 - **Framework**: React
 - **Build Tool**: Vite
 - **PDF Viewer**: PDF.js
-- **Styling**: CSS
+- **Styling**: Tailwind-CSS
 
 ## Prerequisites
 
@@ -64,9 +64,6 @@ Before you begin, ensure you have the following installed:
 - **MongoDB Atlas Account** - [Sign up](https://www.mongodb.com/cloud/atlas)
 - **Git** - [Download](https://git-scm.com/)
 
-Optional:
-
-- **Razorpay/Stripe Account** for payment testing
 
 ## Installation
 
