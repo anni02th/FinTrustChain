@@ -27,14 +27,14 @@ FinTrustChain mimics the credit score system using a TrustIndex metric (0-950) a
 
 ## Features
 
-- 🔐 **Secure Authentication**: JWT-based authentication with email verification
+- 🔐 **Secure Authentication**: JWT-backed sessions with SendGrid-powered email verification
 - 📊 **Dynamic TrustIndex**: Real-time trust score calculation based on user behavior
 - 🤝 **Endorsement System**: Bidirectional endorsements with monthly limits
 - 📝 **Digital Contracts**: PDF-based contracts with e-signatures
 - 💰 **Flexible Lending**: Create and browse loan brochures with custom terms
 - 📈 **Analytics Dashboard**: Track trust index history and loan performance
 - 🔔 **Real-time Notifications**: Stay updated on loan requests, endorsements, and payments
-- 💳 **Payment Integration**: Mock payment gateway integration (Phonepe Mock UPI)
+- 💳 **Payment Integration**: PhonePe Standard Checkout (sandbox/mock UPI) for disbursals and repayments
 
 ## Tech Stack
 
@@ -43,17 +43,17 @@ FinTrustChain mimics the credit score system using a TrustIndex metric (0-950) a
 - **Runtime**: Node.js
 - **Framework**: Express.js
 - **Database**: MongoDB Atlas
-- **Authentication**: JWT + email verification : Nodemailer (dev) and Sendgrid api (prod)
+- **Authentication**: JWT + SendGrid transactional email for verification links
 - **File Storage**: Multer
 - **PDF Generation**: pdf-lib
-- **Payment**: Phonepe UPI (mock)
+- **Payment**: PhonePe PG SDK (sandbox/mock UPI)
 
 ### Frontend
 
 - **Framework**: React
 - **Build Tool**: Vite
 - **PDF Viewer**: PDF.js
-- **Styling**: Tailwind-CSS
+- **Styling**: Tailwind CSS + custom components
 
 ## Prerequisites
 
@@ -63,7 +63,6 @@ Before you begin, ensure you have the following installed:
 - **npm** or **yarn** - Comes with Node.js
 - **MongoDB Atlas Account** - [Sign up](https://www.mongodb.com/cloud/atlas)
 - **Git** - [Download](https://git-scm.com/)
-
 
 ## Installation
 
@@ -96,34 +95,48 @@ npm install
 2. Create a `.env` file based on the following template:
 
 ```env
-# Server Configuration
-PORT=5000
+# Core Server
+PORT=3000
 NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
 
 # Database
-MONGODB_URI=your_mongodb_connection_string
+MONGO_URI=your_mongodb_connection_string
 
-# JWT Secret
+# JWT
 JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRE=7d
+JWT_EXPIRES_IN=90d
 
-# Email Configuration (Nodemailer)
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASSWORD=your_app_password
+# Email (SendGrid)
+SENDGRID_API_KEY=your_sendgrid_api_key
 EMAIL_FROM=noreply@fintrustchain.com
 
-# Frontend URL
-CLIENT_URL=http://localhost:5173
-
-# Payment Gateway (Optional - for testing)
-RAZORPAY_KEY_ID=your_razorpay_key_id
-RAZORPAY_KEY_SECRET=your_razorpay_key_secret
-
-# File Upload
-MAX_FILE_SIZE=5242880
+# PhonePe Sandbox Credentials
+PHONEPE_CLIENT_ID=your_phonepe_client_id
+PHONEPE_CLIENT_SECRET=your_phonepe_client_secret
+PHONEPE_CLIENT_VERSION=1
+PHONEPE_HOST_URL=https://api-preprod.phonepe.com/apis/pg-sandbox
+PHONEPE_WEBHOOK_USERNAME=WebhookUser
+PHONEPE_WEBHOOK_PASSWORD=WebhookPassword
 ```
+
+Key variables:
+
+- `FRONTEND_URL` is used for CORS and PhonePe redirect URLs.
+- `SENDGRID_API_KEY` + `EMAIL_FROM` drive verification emails; the sender must be verified inside SendGrid.
+- `PHONEPE_*` values configure the PhonePe PG SDK as well as webhook authentication for `/api/v1/payments/callback`.
+
+### Email Configuration (SendGrid)
+
+1. Create a SendGrid account and complete sender-domain verification.
+2. Generate an API key with "Mail Send" permission and copy it into `SENDGRID_API_KEY`.
+3. Set `EMAIL_FROM` to the verified sender (e.g., `noreply@fintrustchain.com`).
+
+### PhonePe Sandbox Configuration
+
+1. Register for the PhonePe sandbox and note the `clientId`, `clientSecret`, and `version`.
+2. Keep `PHONEPE_HOST_URL` pointing to the sandbox base unless you have production credentials.
+3. Choose webhook basic-auth credentials and set `PHONEPE_WEBHOOK_USERNAME` / `PHONEPE_WEBHOOK_PASSWORD`; PhonePe will include them when calling `/api/v1/payments/callback`.
 
 ### Client Configuration
 
@@ -131,8 +144,7 @@ MAX_FILE_SIZE=5242880
 2. Create a `.env` file:
 
 ```env
-VITE_API_URL=http://localhost:5000/api
-VITE_RAZORPAY_KEY_ID=your_razorpay_key_id
+VITE_API_BASE=http://localhost:3000/api/v1
 ```
 
 ### Setting up MongoDB Atlas
@@ -141,39 +153,20 @@ VITE_RAZORPAY_KEY_ID=your_razorpay_key_id
 2. Create a new cluster (free tier is sufficient for testing)
 3. Create a database user with username and password
 4. Whitelist your IP address (or use 0.0.0.0/0 for development)
-5. Get your connection string and replace `MONGODB_URI` in `.env`
-
-### Email Configuration
-
-For Gmail (recommended for development):
-
-1. Enable 2-factor authentication on your Google account
-2. Generate an App Password: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
-3. Use the app password in `EMAIL_PASSWORD`
+5. Get your connection string and replace `MONGO_URI` in `.env`
 
 ## Running the Project
 
 ### Development Mode
 
-#### Option 1: Run Both Server and Client Simultaneously
-
-From the root directory:
-
 ```bash
-# Terminal 1 - Run Server
+# Terminal 1 – API (nodemon watches server.js)
 cd server
-npm run dev
+npm install
+npm start
 
-# Terminal 2 - Run Client
+# Terminal 2 – React client
 cd client
-npm run dev
-```
-
-#### Option 2: Using Concurrently (if configured)
-
-From the root directory:
-
-```bash
 npm install
 npm run dev
 ```
@@ -184,7 +177,8 @@ npm run dev
 
 ```bash
 cd server
-npm start
+npm install --production
+NODE_ENV=production node server.js
 ```
 
 #### Client
@@ -208,68 +202,144 @@ docker-compose up --build
 
 ```
 FinTrustChain/
-├── client/                      # React frontend
-│   ├── public/                  # Static assets
-│   ├── src/
-│   │   ├── api/                 # API service layer
-│   │   ├── assets/              # Images, fonts, etc.
-│   │   ├── components/          # Reusable components
-│   │   ├── context/             # React context (Auth, etc.)
-│   │   ├── pages/               # Page components
-│   │   ├── App.jsx              # Main app component
-│   │   └── main.jsx             # Entry point
+├── README.md
+├── package.json                 # Root placeholder (no scripts)
+├── client/                      # React + Vite frontend
 │   ├── package.json
-│   └── vite.config.js
-│
-├── server/                      # Node.js backend
-│   ├── config/                  # Configuration files
-│   ├── controllers/             # Route controllers
-│   ├── middlewares/             # Custom middlewares
-│   ├── models/                  # MongoDB schemas
-│   ├── routes/                  # API routes
-│   ├── services/                # Business logic
-│   ├── utils/                   # Utility functions
-│   ├── public/                  # Uploaded files (contracts, e-signs)
-│   ├── server.js                # Entry point
-│   └── package.json
-│
-└── README.md
+│   ├── vite.config.js
+│   ├── public/                  # Static assets served as-is
+│   └── src/
+│       ├── api/                 # Axios client & endpoint helpers
+│       ├── assets/              # Icons, illustrations, fonts
+│       ├── components/          # Shared UI widgets
+│       ├── context/             # Auth provider
+│       ├── pages/               # Route-level screens
+│       ├── App.jsx
+│       └── main.jsx
+└── server/                      # Express API + schedulers
+    ├── server.js                # App bootstrap
+    ├── package.json
+    ├── docker-compose.yml / Dockerfile / render.yaml
+    ├── config/                  # Mongo connection, env helpers
+    ├── controllers/             # Request handlers
+    ├── middlewares/             # Auth + rate limiting
+    ├── models/                  # Mongoose schemas
+    ├── routes/                  # REST route definitions
+    ├── services/                # Business logic (PhonePe, TI math)
+    ├── utils/                   # Email, logger, scheduler
+    ├── public/
+    │   ├── contracts/           # Generated agreements
+    │   └── img/                 # User assets (esigns, proofs, users)
+    ├── logs/                    # Winston output
+    └── .env / .env.production   # Environment configs (local only)
 ```
 
 ## API Endpoints Overview
 
-### Authentication
+All API routes are rate-limited and mounted under `http://localhost:3000/api/v1`. A health probe is available at `GET http://localhost:3000/health`.
 
-- `POST /api/auth/register` - User registration with e-sign
-- `POST /api/auth/login` - User login
-- `POST /api/auth/verify-email` - Email verification
+### Authentication (public)
 
-### User Profile
+| Method | Path                               | Description                                              |
+| ------ | ---------------------------------- | -------------------------------------------------------- |
+| `POST` | `/api/v1/auth/register`            | Register user, upload e-sign PNG, send verification mail |
+| `GET`  | `/api/v1/auth/verify-email/:token` | Confirm the emailed token (10 min expiry)                |
+| `POST` | `/api/v1/auth/login`               | Issue JWT for subsequent calls                           |
 
-- `GET /api/users/:id/public` - Public profile
-- `GET /api/users/:id/private` - Private dashboard
-- `PATCH /api/users/:id` - Update profile
-- `POST /api/users/:id/toggle-role` - Switch between Lender/Receiver
+### Users (JWT required)
 
-### Endorsements
+| Method  | Path                           | Description                                      |
+| ------- | ------------------------------ | ------------------------------------------------ |
+| `GET`   | `/api/v1/users/me`             | Fetch current user profile + role                |
+| `GET`   | `/api/v1/users/:id/public`     | View someone’s public TrustIndex breakdown       |
+| `GET`   | `/api/v1/users/:id/private`    | Owner-only dashboard view                        |
+| `PATCH` | `/api/v1/users/update-me`      | Update profile data / avatar (multipart)         |
+| `POST`  | `/api/v1/users/toggle-my-role` | Switch between LENDER and RECEIVER when eligible |
 
-- `POST /api/endorsements` - Create endorsement
-- `DELETE /api/endorsements/:id` - Remove endorsement
+### Endorsements (JWT)
 
-### Loan Management
+| Method   | Path                       | Description                              |
+| -------- | -------------------------- | ---------------------------------------- |
+| `POST`   | `/api/v1/endorsements`     | Create a new endorsement connection      |
+| `DELETE` | `/api/v1/endorsements/:id` | Remove endorsement for the given user ID |
 
-- `GET /api/brochures` - Browse loan offers
-- `POST /api/brochures` - Create loan brochure (lender)
-- `POST /api/loan-requests` - Request loan (receiver)
-- `POST /api/contracts/:id/sign` - Sign contract
-- `POST /api/payments/:contractId/installment` - Record payment
+### Loan Brochures
+
+| Method   | Path                                  | Auth     | Description                                     |
+| -------- | ------------------------------------- | -------- | ----------------------------------------------- |
+| `GET`    | `/api/v1/brochures`                   | Optional | List brochures; response adapts if JWT supplied |
+| `POST`   | `/api/v1/brochures`                   | LENDER   | Publish a brochure                              |
+| `PATCH`  | `/api/v1/brochures/:id`               | LENDER   | Update brochure terms                           |
+| `PATCH`  | `/api/v1/brochures/:id/toggle-status` | LENDER   | Activate/deactivate offer                       |
+| `DELETE` | `/api/v1/brochures/:id`               | LENDER   | Remove brochure                                 |
+
+### Loan Requests (RECEIVER)
+
+| Method  | Path                               | Description                     |
+| ------- | ---------------------------------- | ------------------------------- |
+| `GET`   | `/api/v1/loan-requests/my`         | List borrower’s requests        |
+| `POST`  | `/api/v1/loan-requests`            | Submit up to three brochure IDs |
+| `PATCH` | `/api/v1/loan-requests/:id/cancel` | Cancel before acceptance        |
+
+### Lender Controls (LENDER role)
+
+| Method | Path                                 | Description                                     |
+| ------ | ------------------------------------ | ----------------------------------------------- |
+| `GET`  | `/api/v1/lender/brochures`           | View brochures authored by the logged-in lender |
+| `GET`  | `/api/v1/lender/requests`            | Pending borrower requests awaiting action       |
+| `POST` | `/api/v1/lender/requests/:id/accept` | Accept a borrower request (FCFS)                |
+
+### Guarantor Flow (JWT)
+
+| Method  | Path                                 | Description                          |
+| ------- | ------------------------------------ | ------------------------------------ |
+| `GET`   | `/api/v1/guarantor-requests/pending` | Requests where the user must respond |
+| `GET`   | `/api/v1/guarantor-requests/:id`     | Fetch single request                 |
+| `POST`  | `/api/v1/guarantor-requests`         | Ask someone to guarantee a loan      |
+| `PATCH` | `/api/v1/guarantor-requests/:id`     | Accept or decline                    |
+
+### Contracts & Disbursals (JWT)
+
+| Method | Path                                            | Description                                        |
+| ------ | ----------------------------------------------- | -------------------------------------------------- |
+| `GET`  | `/api/v1/contracts/:id`                         | Fetch contract metadata + parties                  |
+| `GET`  | `/api/v1/contracts/:id/download-pdf`            | Download latest signed PDF                         |
+| `GET`  | `/api/v1/contracts/:id/disbursal-proof`         | Download lender proof file (if uploaded)           |
+| `GET`  | `/api/v1/contracts/:id/receiver-upi`            | Share receiver UPI info with lender                |
+| `POST` | `/api/v1/contracts/:id/sign`                    | Receiver/Guarantor/Lender signs agreement          |
+| `POST` | `/api/v1/contracts/:id/initiate-disbursal`      | Generate PhonePe checkout link for disbursal       |
+| `POST` | `/api/v1/contracts/:id/confirm-disbursal`       | Legacy manual proof upload                         |
+| `POST` | `/api/v1/contracts/:id/confirm-receipt`         | Receiver acknowledges funds                        |
+| `POST` | `/api/v1/contracts/:id/guarantor-pay`           | Guarantor settles default share via PhonePe        |
+| `POST` | `/api/v1/contracts/admin/trigger-default-check` | Manually run scheduler default logic (admin/debug) |
+
+### Payments (PhonePe)
+
+| Method | Path                        | Auth    | Description                                                   |
+| ------ | --------------------------- | ------- | ------------------------------------------------------------- |
+| `POST` | `/api/v1/payments/pay`      | JWT     | Initiate EMI payment for a contract                           |
+| `POST` | `/api/v1/payments/callback` | Webhook | PhonePe callback secured via basic auth (`PHONEPE_WEBHOOK_*`) |
+
+### Notifications & Dashboard (JWT)
+
+| Method  | Path                                    | Description                               |
+| ------- | --------------------------------------- | ----------------------------------------- |
+| `GET`   | `/api/v1/notifications`                 | List notifications for the logged-in user |
+| `PATCH` | `/api/v1/notifications/:id/read`        | Mark individual notification as read      |
+| `GET`   | `/api/v1/dashboard/my-stats`            | Aggregate KPIs for the current role       |
+| `GET`   | `/api/v1/dashboard/my-active-contracts` | Contracts needing attention               |
+| `GET`   | `/api/v1/dashboard/my-pending-actions`  | Action queue (signatures, payments, etc.) |
+| `GET`   | `/api/v1/dashboard/ti-history`          | TrustIndex historical data                |
+| `GET`   | `/api/v1/dashboard/my-endorsers`        | Bidirectional endorsement graph           |
+| `GET`   | `/api/v1/dashboard/eligible-guarantors` | Suggested guarantors                      |
+| `GET`   | `/api/v1/dashboard/eligible-brochures`  | Suggested brochures for borrower          |
 
 ## Default Access
 
 After successful installation:
 
 - **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:5000/api
+- **Backend API**: http://localhost:3000/api/v1 (health probe at `/health`)
 
 ## Troubleshooting
 
@@ -279,7 +349,7 @@ After successful installation:
 
 ```bash
 # Change PORT in server/.env file
-PORT=5001
+PORT=4000
 ```
 
 **MongoDB connection failed:**
@@ -290,9 +360,9 @@ PORT=5001
 
 **Email not sending:**
 
-- Verify Gmail app password is correct
-- Check if 2FA is enabled on your Google account
-- Try using a different SMTP service
+- Confirm `SENDGRID_API_KEY` is set and has "Mail Send" permission
+- Ensure the sender identity configured in SendGrid matches `EMAIL_FROM`
+- Review server logs for SendGrid response codes (they are logged with the status code)
 
 **Module not found:**
 
