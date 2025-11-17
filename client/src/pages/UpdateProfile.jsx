@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { users } from "../api/api";
 import { useNavigate } from "react-router-dom";
 import Loader from "../components/Loader";
+import { getAvatarUrl } from "../utils/imageUtils";
 
 export default function UpdateProfile() {
   const { user, refreshUser } = useAuth();
@@ -72,13 +73,7 @@ export default function UpdateProfile() {
     }
   };
 
-  const currentAvatarUrl =
-    previewUrl ||
-    (user?.avatarUrl
-      ? user.avatarUrl.startsWith("http")
-        ? user.avatarUrl
-        : `/img/users/${user.avatarUrl}`
-      : null);
+  const currentAvatarUrl = previewUrl || getAvatarUrl(user?.avatarUrl);
 
   if (!user) {
     return (

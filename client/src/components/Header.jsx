@@ -114,11 +114,7 @@ export default function Header() {
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-white/6 flex items-center justify-center">
                   {user.avatarUrl ? (
                     <img
-                      src={
-                        user.avatarUrl.startsWith("http")
-                          ? user.avatarUrl
-                          : `/img/users/${user.avatarUrl}`
-                      }
+                      src={getAvatarUrl(user.avatarUrl)}
                       alt="avatar"
                       className="w-full h-full object-cover"
                     />
@@ -134,7 +130,7 @@ export default function Header() {
               </Link>
               <div className="absolute right-0 mt-2 opacity-0 group-hover:opacity-100 transform translate-y-1 group-hover:translate-y-0 transition-all">
                 <Button onClick={handleLogout} className="btn-neon px-3 py-2">
-                  <LogOut/>
+                  <LogOut />
                 </Button>
               </div>
             </div>

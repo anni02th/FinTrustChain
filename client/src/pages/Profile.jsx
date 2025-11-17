@@ -4,6 +4,7 @@ import { users as usersApi, endorsements, dashboard } from "../api/api";
 import { useNavigate } from "react-router-dom";
 import TrustIndexHistory from "../components/TrustIndexHistory";
 import Loader from "../components/Loader";
+import { getAvatarUrl } from "../utils/imageUtils";
 
 export default function Profile() {
   const { user, refreshUser } = useAuth();
@@ -136,11 +137,7 @@ export default function Profile() {
   };
 
   const needsUpiId = !user?.upiId;
-  const avatarUrl = user?.avatarUrl
-    ? user.avatarUrl.startsWith("http")
-      ? user.avatarUrl
-      : `/img/users/${user.avatarUrl}`
-    : null;
+  const avatarUrl = getAvatarUrl(user?.avatarUrl);
 
   if (loading) {
     return (

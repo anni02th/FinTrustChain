@@ -38,7 +38,7 @@ const requiredDirs = [
   "logs",
 ];
 
-requiredDirs.forEach((dir) => {
+requiredDirs.forEach(dir => {
   const dirPath = path.join(__dirname, dir);
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -85,6 +85,17 @@ app.use(compression());
 // Body parsing middlewares
 app.use(express.json({ limit: "10mb" })); // To parse JSON bodies
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Serve static files (images, contracts, etc.)
+app.use(
+  "/public",
+  express.static(path.join(__dirname, "public"), {
+    maxAge: "1d",
+    setHeaders: res => {
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    },
+  })
+);
 
 // Apply rate limiting to all API routes
 app.use("/api/", apiLimiter);
