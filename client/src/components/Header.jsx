@@ -4,6 +4,7 @@ import { Menu, X, Bell, LogOut } from "lucide-react";
 import Button from "./Button";
 import { useAuth } from "../context/AuthContext";
 import { notifications as notificationsApi } from "../api/api";
+import { getAvatarUrl } from "../utils/imageUtils";
 
 const receiverTabs = [
   { to: "/dashboard", label: "Dashboard" },

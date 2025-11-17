@@ -8,6 +8,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Loader from "../components/Loader";
+import { getAvatarUrl } from "../utils/imageUtils";
 
 export default function LenderDashboard() {
   const navigate = useNavigate();
@@ -291,7 +292,7 @@ export default function LenderDashboard() {
                       <div className="flex items-center gap-4 mb-4 pb-4 border-b border-white/10">
                         <img
                           src={
-                            request.receiver?.avatarUrl ||
+                            getAvatarUrl(request.receiver?.avatarUrl) ||
                             "https://via.placeholder.com/64"
                           }
                           alt={request.receiver?.name}
