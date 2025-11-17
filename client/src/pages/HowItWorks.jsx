@@ -2,7 +2,7 @@ import React from "react";
 
 const HowItWorks = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 py-24 px-4">
+    <div className="min-h-screen bg-primarypy-24 container mx-auto px-4 py-24">
       <div className="container mx-auto max-w-5xl">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-8 text-center">
           How FinTrustChain Works

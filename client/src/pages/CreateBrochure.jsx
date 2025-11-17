@@ -80,7 +80,7 @@ export default function CreateBrochure() {
       <div className="max-w-2xl mx-auto">
         <button
           onClick={() => navigate("/lender-dashboard")}
-          className="mb-6 text-blue-400 hover:text-blue-300"
+          className="mb-6 text-blue-400 hover:text-blue-300 pointer"
         >
           ← Back to Dashboard
         </button>
@@ -230,7 +230,7 @@ export default function CreateBrochure() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg text-white font-medium hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 btn-neon flex items-center justify-center"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -259,7 +259,7 @@ export default function CreateBrochure() {
             <button
               type="button"
               onClick={() => navigate("/lender-dashboard")}
-              className="px-6 py-3 rounded-lg border border-white/20 text-white hover:bg-white/10 transition-colors"
+              className="pointer px-6 py-3 rounded-lg border border-white/20 text-white hover:bg-white/10 transition-colors"
             >
               Cancel
             </button>

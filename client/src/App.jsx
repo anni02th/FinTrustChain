@@ -25,6 +25,7 @@ import Services from "./pages/Services";
 import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ScrollToTop from "./components/ScrollToTop";
 import { Toaster } from "react-hot-toast";
 import "./App.css";
 
@@ -32,6 +33,7 @@ function App() {
   return (
     <Router>
       <Header />
+      <ScrollToTop />
 
       <Routes>
         <Route path="/" element={<Home />} />
@@ -45,89 +47,23 @@ function App() {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/privacy" element={<Privacy />} />
 
-        {/* Protected Routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/lender-dashboard"
-          element={
-            <ProtectedRoute>
-              <LenderDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/update-profile"
-          element={
-            <ProtectedRoute>
-              <UpdateProfile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/create-loan"
-          element={
-            <ProtectedRoute>
-              <LoanRequestForm />
-            </ProtectedRoute>
-          }
-        />
+        {/* Protected Routes grouped for brevity */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/lender-dashboard" element={<LenderDashboard />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/update-profile" element={<UpdateProfile />} />
+          <Route path="/create-loan" element={<LoanRequestForm />} />
+          <Route path="/create-brochure" element={<CreateBrochure />} />
+          <Route path="/contracts/:id" element={<ContractDetail />} />
+          <Route path="/contract-viewer/:id" element={<ContractViewer />} />
+          <Route path="/payments" element={<Payments />} />
+          <Route path="/notifications" element={<Notifications />} />
+        </Route>
+
+        {/* Public routes */}
         <Route path="/brochures" element={<LoanBrochures />} />
-        <Route
-          path="/create-brochure"
-          element={
-            <ProtectedRoute>
-              <CreateBrochure />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/contracts/:id"
-          element={
-            <ProtectedRoute>
-              <ContractDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/contract-viewer/:id"
-          element={
-            <ProtectedRoute>
-              <ContractViewer />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/payments"
-          element={
-            <ProtectedRoute>
-              <Payments />
-            </ProtectedRoute>
-          }
-        />
         <Route path="/payment-status" element={<PaymentStatus />} />
-        <Route
-          path="/notifications"
-          element={
-            <ProtectedRoute>
-              <Notifications />
-            </ProtectedRoute>
-          }
-        />
 
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -135,7 +135,7 @@ export default function LenderDashboard() {
         <h1 className="text-3xl font-bold text-white">Lender Dashboard</h1>
         <button
           onClick={() => navigate("/create-brochure")}
-          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg text-white font-medium hover:from-blue-600 hover:to-purple-600 transition-all"
+          className="btn-neon transition-all"
         >
           + Create Brochure
         </button>
