@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Menu, X, Bell } from "lucide-react";
+import { Menu, X, Bell, LogOut } from "lucide-react";
 import Button from "./Button";
 import { useAuth } from "../context/AuthContext";
 import { notifications as notificationsApi } from "../api/api";
@@ -134,7 +134,7 @@ export default function Header() {
               </Link>
               <div className="absolute right-0 mt-2 opacity-0 group-hover:opacity-100 transform translate-y-1 group-hover:translate-y-0 transition-all">
                 <Button onClick={handleLogout} className="btn-neon px-3 py-2">
-                  Logout
+                  <LogOut/>
                 </Button>
               </div>
             </div>
