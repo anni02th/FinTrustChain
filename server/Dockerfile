@@ -3,17 +3,33 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /usr/src/app
 
+# Install build dependencies for native modules (sharp, etc.)
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    giflib-dev
+
 # Copy package files
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --omit=dev && npm cache clean --force
 
 # Copy application files
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p logs uploads/temp public/contracts public/img/esignatures public/img/proofs public/img/users
+# Create necessary directories with proper permissions
+RUN mkdir -p logs \
+    public/contracts \
+    public/img/esigns \
+    public/img/proofs \
+    public/img/users \
+    public/fonts \
+    public/templates
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
@@ -23,7 +39,7 @@ RUN addgroup -g 1001 -S nodejs && \
 # Switch to non-root user
 USER nodejs
 
-# Expose port
+# Expose port (Render will use PORT env variable)
 EXPOSE 3000
 
 # Health check
